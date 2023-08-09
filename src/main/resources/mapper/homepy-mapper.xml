@@ -1,0 +1,603 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">  
+<mapper namespace="com.web.test.minihomepy.mapper.minihomepyMapper">
+	<!-- 미니홈피 생성 유무  -->
+	<select id="minihomeCheck">
+		SELECT 
+			COUNT(*)
+		FROM 
+			TB_MINIHOME
+		WHERE 
+			USER_NO = #{userNo}
+	</select>
+	<!-- 미니홈피 만들기 -->
+	<insert id="madeMiniHomepy" parameterType="_int">
+		INSERT INTO TB_MINIHOME(
+			USER_NO		
+		)
+		VALUES(
+			#{userNo}
+		)	
+	</insert>
+	<!-- 미니홈피 게시판 기본 인덱스 생성 -->
+	<insert id="madeHomepyBasicCate" parameterType="_int">
+		INSERT INTO TB_CATEGORY(
+			MINI_NO, CATE_NAME
+		)
+		VALUES(
+			#{miniNo}, 'BASIC'
+		)
+	</insert>
+	<!-- 나의 미니홈피 인덱스 -->
+	<select id="myHomepyMiniNo" parameterType="_int" resultType="_int">
+		SELECT 
+			MINI_NO
+		FROM 
+			TB_MINIHOME
+		WHERE
+			USER_NO = #{userNo}
+	
+	</select>
+	<!-- 내 미니홈피 정보 모음 -->
+	<select id="myHomepy" parameterType="_int" resultType="minihomepyVo">
+		SELECT *
+		FROM
+			TB_MINIHOME
+		WHERE
+			MINI_NO = #{miniNo}
+	</select>
+	<!-- 미니홈피 타이틀 수정 -->
+	<update id="updateMiniTitle" parameterType="minihomepyVo">
+		UPDATE
+			TB_MINIHOME
+		SET
+			MINI_TITLE = #{miniTitle}
+		WHERE
+			MINI_NO = #{miniNo}
+	</update>
+	<!--  -->
+	<insert id="userCount" statementType="CALLABLE" parameterType="guestcountVo">
+	{
+		CALL 
+			count_User(#{gcGuest}, #{miniNo})
+	}
+	</insert>
+	<!-- 전체 카운트 -->
+	<select id="totalCount" statementType="CALLABLE" parameterType="_int" resultType="_int">
+	{
+		CALL 
+			total_count(#{miniNo})
+	}
+	</select>
+	<!-- 오늘 카운트 -->
+	<select id="todayCount" statementType="CALLABLE" parameterType="_int" resultType="_int">
+	{
+		CALL 
+			today_count(#{miniNo})
+	}
+	</select>
+	<!-- top-n -->
+	<select id="todayMinihomepyList" resultType="minihomepyVo">
+		SELECT 
+			MH.MINI_NO, 
+			MH.USER_NO,
+			U.USER_NAME,
+			MH.MINI_PROFILE, 
+			MH.MINI_TITLE, 
+			f.FILE_PATH,
+			U.USER_DAY,
+			(SELECT COUNT(*) FROM tb_guestcount WHERE GC_DAY = CURDATE() AND MINI_NO = MH.MINI_NO ) GC_COUNT 
+		FROM 
+			tb_minihome MH
+		LEFT JOIN tb_guestcount GC USING(MINI_NO)
+		LEFT JOIN tb_file f USING(FILE_NO)
+		LEFT JOIN tb_user U ON (U.USER_NO = MH.USER_NO)
+		GROUP BY 
+			MINI_NO
+		ORDER BY 
+			GC_COUNT DESC
+		LIMIT 5;				
+	</select>
+	<!-- 나의 페이지 공지 리스트 -->
+	<select id="noticeList" resultType="noticeVo">
+		SELECT
+			*
+		FROM 
+			TB_NOTICE
+		WHERE
+			NOTICE_STATUS = 'Y'
+		ORDER BY 
+			NOTICE_NO DESC
+		LIMIT 5;
+	</select>
+	<!-- 파일 정보 -->
+	<select id="detailFile" parameterType="_int" resultType="fileVo">
+		SELECT 
+			*
+		FROM 
+			TB_FILE
+		WHERE
+			FILE_NO = #{fileNo}
+		ORDER BY file_no desc
+		LIMIT 1
+	</select>
+	<!-- 파일 업로드 -->
+	<insert id="insertFile" parameterType="fileVo">
+		INSERT INTO TB_FILE(
+		<trim prefixOverrides=",">
+			<if test="originName       !=null and originName   !=''"> , ORIGIN_NAME </if>
+			<if test="changeName       !=null and changeName   !=''"> , CHANGE_NAME </if>
+			<if test="filePath       !=null and filePath    !=''"> , FILE_PATH </if>
+			<if test="miniNo       !=null and miniNo    !=''"> , MINI_NO </if>
+			<if test="boardNo       !=null and boardNo       !=''"> , BOARD_NO </if>
+		</trim>
+		)
+		VALUES(
+		<trim prefixOverrides=",">
+			<if test="originName       !=null and originName       !=''"> , #{originName}       </if>
+			<if test="changeName       !=null and changeName       !=''"> , #{changeName}       </if>
+			<if test="filePath       !=null and filePath       !=''"> , #{filePath}       </if>
+			<if test="miniNo       !=null and miniNo       !=''"> , #{miniNo}       </if>
+			<if test="boardNo       !=null and boardNo       !=''"> , #{boardNo}      </if>
+		</trim>
+		)		
+	</insert>
+	<!-- 방금 업로드한 파일 인덱스 정보 -->
+	<select id="searchInsertFile" parameterType="_int" resultType="fileVo">
+		SELECT 
+			*
+		FROM 
+			TB_FILE
+		WHERE
+			MINI_NO = #{miniNo}
+		ORDER BY FILE_NO DESC
+		LIMIT 1
+	</select>
+	<!-- 홈피 상태, 프로필 업데이트 -->
+	<update id="updateProfile" parameterType="minihomepyVo">
+		UPDATE
+			TB_MINIHOME
+		SET
+			MINI_PROFILE = #{miniProfile},
+			MINI_MYSTATUS = #{miniMystatus},
+			FILE_NO = #{fileNo}
+		WHERE
+			MINI_NO = #{miniNo}
+	</update>
+	<!-- 다이어리(홈피) 홈 -->
+	<select id="myDiaryHome" parameterType="_int" resultType="diaryVo">
+		SELECT
+			*
+		FROM 
+			TB_DIARY
+		WHERE
+			MINI_NO = #{miniNo}
+		AND 
+			DIARY_STATUS = 'Y'
+		ORDER BY DIARY_NO DESC
+	</select>
+	<!-- 다이어리 작성 -->
+	<insert id="insertDiary" parameterType="diaryVo">
+		INSERT INTO TB_DIARY(
+			USER_NO, MINI_NO, DIARY_TITLE, DIARY_CONTENT
+		)
+		VALUES(
+			#{userNo}, #{miniNo}, #{diaryTitle}, #{diaryContent}
+		)
+	</insert>
+	<!-- 다이어리 상세보기 -->
+	<select id="detailDiary" parameterType="diaryVo" resultType="diaryVo">
+		SELECT
+			*
+		FROM 
+			TB_DIARY
+		WHERE
+			MINI_NO = #{miniNo}
+		AND
+			DIARY_NO = #{diaryNo}
+	</select>
+	<!-- 다이어리 수정 -->
+	<update id="updateDiary" parameterType="diaryVo">
+		UPDATE
+			TB_DIARY
+		SET
+			DIARY_TITLE = #{diaryTitle},
+			DIARY_CONTENT = #{diaryContent}
+		WHERE
+			DIARY_NO = #{diaryNo}
+	</update>
+	<!-- 다이어리 삭제 -->
+	<update id="deleteDiary" parameterType="_int">
+		UPDATE
+			TB_DIARY
+		SET
+			DIARY_STATUS = 'N'	
+		WHERE
+			DIARY_NO = #{diaryNo}
+	</update>
+	<!-- 홈피 소유 유저 찾기 -->
+	<select id="searchUser" parameterType="_int">
+		SELECT
+			USER_NO
+		FROM
+			TB_MINIHOME
+		WHERE
+			MINI_NO = #{miniNo}
+	</select>
+	<!-- 방명록 글 전체 개수(비밀글 미포함) -->
+	<select id="gblistcount" parameterType="guestBookVo" resultType="_int">
+		SELECT
+			COUNT(*)
+		FROM 
+			TB_GUESTBOOK
+		WHERE
+			GB_STATUS = 'Y'
+		AND
+			GB_SECRET = 'N' 
+		AND 
+			MINI_NO = #{miniNo}	
+	</select>
+	<!-- 방명록 글 전체 개수(비밀글 포함) -->
+	<select id="gblistcountS" parameterType="guestBookVo" resultType="_int">
+		SELECT
+			COUNT(*)
+		FROM 
+			TB_GUESTBOOK
+		WHERE
+			GB_STATUS = 'Y'
+		AND
+			MINI_NO = #{miniNo}
+	</select>
+	<!-- 방명록 홈(비밀글 미포함) -->
+	<select id="guestBookList" parameterType="guestBookVo" resultType="guestBookVo">
+		SELECT DISTINCT
+			GB_NO, GB_WRITER, GB_CONTENT, GB_DAY, GB_STATUS, GB_SECRET, FILE_PATH, USER_NAME
+		FROM 
+			TB_GUESTBOOK G
+		LEFT JOIN 
+			TB_FILE F ON(GB_WRITER = F.USER_NO)
+		LEFT JOIN
+			tb_user U ON(GB_WRITER = U.USER_NO)
+		WHERE
+			G.MINI_NO = #{miniNo}
+		AND
+			GB_STATUS = 'Y'
+		AND
+			GB_SECRET = 'N' 
+			
+		UNION
+		
+		SELECT DISTINCT
+		GB_NO, GB_WRITER, GB_CONTENT, GB_DAY, GB_STATUS, GB_SECRET, FILE_PATH, USER_NAME
+		FROM 
+			TB_GUESTBOOK G
+		LEFT JOIN 
+			TB_FILE F ON(GB_WRITER = F.USER_NO)
+		LEFT JOIN
+			tb_user U ON(GB_WRITER = U.USER_NO)
+		WHERE
+			G.MINI_NO = #{miniNo}
+		AND
+			GB_STATUS = 'Y'
+		AND 
+			GB_WRITER = #{gbWriter}
+		
+		ORDER BY GB_NO DESC
+		<if test="row != 0"><![CDATA[ LIMIT #{offset}, #{row} ]]></if>
+		
+	
+	</select>
+	<!-- 방명록 홈(비밀글 포함) -->
+	<select id="guestBookListS" parameterType="guestBookVo" resultType="guestBookVo">
+		SELECT DISTINCT
+			GB_NO, GB_WRITER, GB_CONTENT, GB_DAY, GB_STATUS, GB_SECRET, FILE_PATH, USER_NAME
+		FROM 
+			TB_GUESTBOOK G
+		LEFT JOIN 
+			TB_FILE F ON(GB_WRITER = F.USER_NO)
+		LEFT JOIN
+			tb_user U ON(GB_WRITER = U.USER_NO)
+		WHERE
+			G.MINI_NO = #{miniNo}
+		AND
+			GB_STATUS = 'Y'
+		ORDER BY GB_NO DESC
+		<if test="row != 0"><![CDATA[ LIMIT #{offset}, #{row} ]]></if>
+	</select>
+	
+	<!-- 방명록 작성 -->
+	<insert id="insertGuestBook" parameterType="guestBookVo" >
+		INSERT INTO TB_GUESTBOOK(
+			MINI_NO, GB_WRITER, GB_CONTENT, GB_SECRET
+		)
+		VALUES(
+			#{miniNo}, #{gbWriter}, #{gbContent}, #{gbSecret}
+		)
+	</insert>
+	
+	<!-- 방명록 삭제 -->
+	<update id="deleteGuestBook" parameterType="_int">
+		UPDATE
+			TB_GUESTBOOK
+		SET
+			GB_STATUS = 'N'	
+		WHERE
+			GB_NO = #{gbNo}
+	</update>
+	<!--  방명록 수정 폼 -->
+	<select id="updateGuestBookForm" parameterType="_int" resultType="guestBookVo">
+		SELECT
+			*
+		FROM 	
+			TB_GUESTBOOK
+		WHERE
+			GB_NO = #{gbNo}
+	</select>
+	<!-- 방명록 수정 -->
+	<update id="updateGuestBook" parameterType="guestBookVo">
+		UPDATE
+			TB_GUESTBOOK
+		SET
+			GB_CONTENT = #{gbContent},
+			GB_SECRET = #{gbSecret}
+		WHERE
+			GB_NO = #{gbNo}
+	
+	</update>
+	<!-- 수정완료한 방명록 가져오기 -->
+	<select id="searchGuestBook" parameterType="_int" resultType="guestBookVo">
+		SELECT
+			GB_NO, GB_WRITER, GB_CONTENT, GB_DAY, GB_STATUS, GB_SECRET, FILE_PATH, USER_NAME
+		FROM 
+			TB_GUESTBOOK G
+		LEFT JOIN 
+			TB_FILE F ON(GB_WRITER = F.USER_NO)
+		LEFT JOIN
+			tb_user U ON(GB_WRITER = U.USER_NO)
+		WHERE
+			G.GB_NO = #{gbNo}
+		AND
+			GB_STATUS = 'Y'
+		ORDER BY GB_NO DESC
+	</select>
+	<!-- 게시판 게시글 리스트 -->
+	<select id="totalBoardList" parameterType="_int" resultType="boardVo">
+		SELECT 
+			*
+		FROM (
+				SELECT
+					 B.BOARD_NO, B.BOARD_TITLE, B.BOARD_CATE, F.FILE_NO, F.FILE_PATH, C.CATE_NO, B.BOARD_DAY, B.BOARD_CONTENT, B.MINI_NO
+				FROM 
+					tb_board B
+				LEFT JOIN 
+					tb_file F ON B.BOARD_NO = F.BOARD_NO 
+				LEFT JOIN 
+					tb_category C ON C.CATE_NAME = B.BOARD_CATE 
+				WHERE (F.BOARD_NO, F.FILE_NO) IN (
+					    SELECT BOARD_NO, MAX(E.FILE_NO)
+					    FROM tb_file E
+					    GROUP BY E.BOARD_NO
+				) OR ( F.FILE_PATH IS NULL)
+				ORDER BY B.BOARD_NO
+				
+		) BB
+		WHERE MINI_NO = #{miniNo}
+		ORDER BY board_no DESC
+			</select>
+	<!-- 게시판 카테고리 가져오기 -->
+	<select id="boardCate" parameterType="_int" resultType="cateVo">
+		SELECT
+			*
+		FROM 
+			TB_CATEGORY
+		WHERE
+			MINI_NO = #{miniNo}	
+		AND
+			CATE_STATUS = 'Y'
+	</select>
+	<!-- 카테고리 이름 수정 -->
+	<update id="updateboardCate" parameterType="cateVo">
+		UPDATE
+			TB_CATEGORY
+		SET
+			CATE_NAME = #{changeName}
+		WHERE
+			CATE_NO = #{cateNo}
+		AND
+			MINI_NO = #{miniNo}
+	</update>
+	<!-- 카테고리 기존 이름 불러오기 -->
+	<select id="searchCateNo" parameterType="_int" resultType="String">
+		SELECT 
+			CATE_NAME
+		FROM
+			TB_CATEGORY
+		WHERE
+			CATE_NO = #{cateNo}
+		
+	</select>
+	<!-- 카테고리 이름 수정할 게시글 리스트 -->
+	<select id="cateBoardList" parameterType="String" resultType="boardVo">
+		SELECT 
+			*
+		FROM
+			TB_BOARD
+		WHERE
+			BOARD_CATE = #{boardCate}
+	</select>
+	<!-- 카테고리 이름 수정 후 해당 게시글 카테 수정 -->
+	<update id="updateboardCateList" parameterType="boardVo">
+		UPDATE
+			TB_BOARD
+		SET
+			BOARD_CATE = #{boardCate}
+		WHERE
+			BOARD_NO = #{boardNo}		
+	</update>
+	<!-- 카테고리 삭제 가능 여부(카테고리) -->
+	<select id="deleteYN" parameterType="cateVo" resultType="_int">
+		SELECT
+			COUNT(*)
+		FROM
+			TB_CATEGORY
+		WHERE
+			MINI_NO = #{miniNo}
+		AND
+			CATE_STATUS = 'Y'
+	</select>
+	<!-- 카테고리 삭제 가능 여부(게시글) -->
+	<select id="deleteYN2" parameterType="cateVo" resultType="_int">
+		SELECT
+			COUNT(*)
+		FROM
+			TB_BOARD
+		WHERE
+			BOARD_CATE = #{cateName}
+		AND
+			BOARD_STATUS = 'Y'
+	</select>
+	<!-- 카테고리 삭제 -->
+	<update id="deleteBoardCate" parameterType="cateVo">
+		UPDATE
+			TB_CATEGORY
+		SET
+			CATE_STATUS = 'N'
+		WHERE
+			CATE_NO = #{cateNo}
+	</update>
+	<!-- 카테고리 추가 가능 여부(이름중복) -->
+	<select id="insertYN" parameterType="cateVo" resultType="_int">
+		SELECT
+			COUNT(*)
+		FROM
+			TB_CATEGORY
+		WHERE
+			CATE_NAME = #{cateName}
+		AND
+			MINI_NO = #{miniNo}
+		AND
+			CATE_STATUS = 'Y'
+	</select>
+	<!-- 카테고리 추가 -->
+	<insert id="insertBoardCate" parameterType="cateVo">
+		INSERT INTO TB_CATEGORY(
+			MINI_NO, CATE_NAME
+		)
+		VALUES(
+			#{miniNo}, #{cateName}
+		)
+	</insert>
+	<!-- 새 글 등록 -->
+	<insert id="insertBoard" parameterType="boardVo">
+		INSERT INTO TB_BOARD(
+			BOARD_CATE, BOARD_TITLE, BOARD_CONTENT, MINI_NO
+		)
+		VALUES(
+			#{boardCate}, #{boardTitle}, #{boardContent}, #{miniNo}
+		)
+	</insert>
+	<!-- 방금 등록한 글 인덱스 불러오기 -->
+	<select id="searchBoardNo" parameterType="_int">
+		SELECT 
+			board_no
+		FROM 
+			tb_board
+		WHERE 
+			mini_no = #{miniNo}
+		ORDER BY 
+			board_No DESC
+		LIMIT 1
+	</select>
+
+ 	<!-- 카테고리에 따른 게시글 목록 -->
+	<select id="boardList" parameterType="_int">
+		SELECT 
+			*
+		FROM (
+				SELECT
+					 B.BOARD_NO, B.BOARD_TITLE, B.BOARD_CATE, F.FILE_NO, F.FILE_PATH, C.CATE_NO, B.BOARD_DAY, B.BOARD_CONTENT
+				FROM 
+					tb_board B
+				LEFT JOIN 
+					tb_file F ON B.BOARD_NO = F.BOARD_NO 
+				LEFT JOIN 
+					tb_category C ON C.CATE_NAME = B.BOARD_CATE 
+				WHERE (F.BOARD_NO, F.FILE_NO) IN (
+					    SELECT BOARD_NO, MAX(E.FILE_NO)
+					    FROM tb_file E
+					    GROUP BY E.BOARD_NO
+				) OR ( F.FILE_PATH IS NULL)
+				ORDER BY B.BOARD_NO
+		) BB
+		WHERE CATE_NO = #{cateNo}
+		ORDER BY board_no DESC
+	</select>
+	<!-- 게시글 수정 폼 불러오기 -->
+	<select id="detailBoard" parameterType="boardVo" resultType="boardVo">
+		SELECT
+			*
+		FROM
+			TB_BOARD
+		WHERE
+			BOARD_NO = #{boardNo}
+	</select>
+	<!-- 게시글 수정 -->
+	<update id="updateBoard" parameterType="boardVo">
+		UPDATE
+			TB_BOARD
+		SET
+			BOARD_TITLE = #{boardTitle},
+			BOARD_CONTENT = #{boardContent},
+			BOARD_CATE = #{boardCate}
+		WHERE
+			BOARD_NO = #{boardNo}
+	</update>
+	<!-- 게시글 삭제 -->
+	<update id="deleteBoard" parameterType="_int" >
+		UPDATE
+			TB_BOARD
+		SET
+			BOARD_STATUS = 'N'
+		WHERE
+			BOARD_NO = #{boardNo}
+	</update>
+	<!-- 오늘의 방문자 -->
+	<select id="todayVisitor" parameterType="userVo" resultType="guestcountVo">
+				SELECT
+			USER_NAME, USER_ID, GC_DAY, U.USER_NO
+		FROM 
+			tb_guestcount G
+		LEFT JOIN 
+			tb_user U ON U.USER_NO = GC_GUEST
+		WHERE 
+			GC_DAY = CURDATE()
+		AND MINI_NO = #{miniNo}
+		AND U.USER_NO != #{userNo}
+	</select>
+	<!-- 미니홈피 주인 알아오기 -->
+	<select id="miniHomepyUserNo" parameterType="_int" resultType="_int">
+		SELECT 
+			USER_NO
+		FROM 
+			tb_minihome
+		WHERE 
+			MINI_NO = #{miniNo}
+	</select>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</mapper>
